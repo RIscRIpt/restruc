@@ -74,6 +74,14 @@ struct NMTVCUSTOMDRAW
     iLevel          dd ?
 ends
 
+struct NMTVKEYDOWN
+    hdr             NMHDR
+                    dd ? ;align struct
+    wVKey           dw ?
+                    dw ? ;align dword
+    flags           dd ?
+ends
+
 struct NMTREEVIEW
     hdr             NMHDR
                     dd ? ;align struct

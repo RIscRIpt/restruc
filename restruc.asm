@@ -332,8 +332,20 @@ section '.code' code readable executable
                     cmp eax, NM_CUSTOMDRAW
                     je .wm_ntc_nm_custromdraw
                     cmp eax, TVN_DELETEITEM
+                    je .wm_ntc_tvn_deleteitem
+                    cmp eax, TVN_KEYDOWN
                     jne .finish
-                    ;.wm_ntc_tvn_deleteitem:
+                        virtual at r9
+                            .nmtvkd NMTVKEYDOWN
+                        end virtual
+                        movzx eax, [.nmtvkd.wVKey]
+                        mov rax, [RSTree_KeyParserTable + eax * 8]
+                        test rax, rax
+                        jz .finish
+                        push .finish
+                        jmp rax
+
+                    .wm_ntc_tvn_deleteitem:
                         virtual at r9
                             .nmtv NMTREEVIEW
                         end virtual
@@ -709,12 +721,6 @@ section '.code' code readable executable
     proc Class_New uses rbx
         frame
             stdcall AddTab, wcsUnnamed
-            stdcall Tree_AddItem, TVI_ROOT, TVI_LAST
-            mov rbx, 1000
-            @@:
-            stdcall Tree_AddItem, TVI_ROOT, rax
-            dec rbx
-            jnz @b
         endf
         ret
     endp

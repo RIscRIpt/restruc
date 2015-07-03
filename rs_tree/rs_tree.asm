@@ -2,8 +2,29 @@ virtual at rbx
     ri rsitem
 end virtual
 
+virtual at rsi
+    nmtvcd NMTVCUSTOMDRAW
+end virtual
+
 proc RSTree_Item_Display
     frame
+        invoke SendMessageW, [hCurrTreeControl], TVM_GETNEXTITEM, TVGN_PREVIOUS, [nmtvcd.nmcd.dwItemSpec]
+        test rax, rax
+        jz @f
+            mov [treeItem.hItem], rax
+            mov [treeItem.mask], TVIF_PARAM
+            invoke SendMessageW, [hCurrTreeControl], TVM_GETITEM, 0, treeItem
+            errorCheck
+            mov rax, [treeItem.lParam]
+            virtual at rax
+                .pri rsitem
+            end virtual
+            mov rcx, [.pri.address]
+            mov edx, [.pri.size]
+            add rcx, rdx
+            mov [ri.address], rcx
+        @@:
+
         stdcall RSTree_Item_Draw_Address
         stdcall RSTree_Item_Draw_Offset
 
@@ -163,6 +184,26 @@ proc RSTree_Item_Draw_Double
         movsd xmm0, qword[remoteBuffer]
         cinvoke sprintf, szRSItemBuffer, szFmtDouble, qword[remoteBuffer]
         stdcall RSTree_Item_Draw, [marginValue], [colorValue]
+    endf
+    ret
+endp
+
+proc RSTree_Append_Item
+    frame
+        invoke SendMessageW, TVM_GETNEXTITEM, TVGN_CARET, 0
+        test rax, rax
+
+        mov rcx, TVI_ROOT
+
+        jz @f
+            invoke SendMessageW, TVM_GETNEXTITEM, TVGN_PARENT, 0
+            test rax, rax
+            mov rcx, TVI_ROOT
+            cmovnz rcx, rax
+        @@:
+
+        mov rdx, TVI_LAST
+        stdcall Tree_AddItem, rcx, rdx
     endf
     ret
 endp
