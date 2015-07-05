@@ -190,13 +190,13 @@ endp
 
 proc RSTree_Append_Item
     frame
-        invoke SendMessageW, TVM_GETNEXTITEM, TVGN_CARET, 0
+        invoke SendMessageW, [hCurrTreeControl], TVM_GETNEXTITEM, TVGN_CARET, 0
         test rax, rax
 
         mov rcx, TVI_ROOT
 
         jz @f
-            invoke SendMessageW, TVM_GETNEXTITEM, TVGN_PARENT, 0
+            invoke SendMessageW, [hCurrTreeControl], TVM_GETNEXTITEM, TVGN_PARENT, rax
             test rax, rax
             mov rcx, TVI_ROOT
             cmovnz rcx, rax
@@ -204,6 +204,22 @@ proc RSTree_Append_Item
 
         mov rdx, TVI_LAST
         stdcall Tree_AddItem, rcx, rdx
+    endf
+    ret
+endp
+
+proc RSTree_Insert_Item uses rbx
+    frame
+        invoke SendMessageW, [hCurrTreeControl], TVM_GETNEXTITEM, TVGN_CARET, 0
+        test rax, rax
+        mov rbx, rax
+        jz @f
+            invoke SendMessageW, [hCurrTreeControl], TVM_GETNEXTITEM, TVGN_PARENT, rax
+            test rax, rax
+            mov rcx, TVI_ROOT
+            cmovnz rcx, rax
+            stdcall Tree_AddItem, rcx, rbx
+        @@:
     endf
     ret
 endp

@@ -310,10 +310,6 @@ section '.code' code readable executable
         frame
             cmp edx, WM_NOTIFY
             je .wm_notify
-            cmp edx, WM_SIZING
-            je .wm_sizing
-            cmp edx, WM_SIZE
-            je .wm_size
             cmp edx, WM_INITDIALOG
             je .wm_initdialog
             cmp edx, WM_CLOSE
@@ -451,18 +447,18 @@ section '.code' code readable executable
                             mov eax, ebx
                             jmp .done
 
-            .wm_sizing:
-            .wm_size:
-                jmp .processed
-
             .wm_initdialog:
                 mov [hWnd], rcx
                 stdcall SetFont, rcx, [hFontTerminal]
                 invoke EnumChildWindows, [hWnd], SetFont, [hFontTerminal]
                 invoke GetDlgItem, [hWnd], RSRC_TREE_CONTROL
                 errorCheck
+                mov [hCurrTreeControl], rax
                 invoke SendMessageW, rax, TVM_SETEXTENDEDSTYLE, 0, TVS_EX_DOUBLEBUFFER
                 errorCheck ne, 0
+                invoke SetWindowLongPtr, [hCurrTreeControl], GWLP_WNDPROC, TreeControlProc
+                errorCheck
+                mov [pDefTreeControlProc], rax
                 jmp .processed
 
             .wm_close:
@@ -476,6 +472,39 @@ section '.code' code readable executable
                 jmp .done
             .finish:
                 xor eax, eax
+            .done:
+        endf
+        ret
+    endp
+
+    proc TreeControlProc hWnd, uMsg, wParam, lParam
+        frame
+            cmp edx, WM_ERASEBKGND
+            je .ret1
+            cmp edx, WM_KEYDOWN
+            je .wm_keydown
+            cmp edx, WM_CHAR
+            je .ret0
+
+            ;.defwndproc:
+                invoke pDefTreeControlProc, rcx, rdx, r8, r9
+                jmp .done
+
+            .wm_keydown:
+                mov rax, [RSTree_KeyParserTable + r8 * 8]
+                test rax, rax
+                jz .ret1
+                push .ret0
+                jmp rax
+
+            .ret1:
+                xor eax, eax
+                inc eax
+                jmp .done
+
+            .ret0:
+                xor eax, eax
+
             .done:
         endf
         ret
@@ -549,17 +578,26 @@ section '.code' code readable executable
                 invoke SendMessageW, [hPDList], LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_FULLROWSELECT
 
                 mov [lvColumn.mask], LVCF_TEXT
-                mov [lvColumn.pszText], wcsPID
+                mov [lvColumn.pszText], wcsName
                 invoke SendMessageW, [hPDList], LVM_INSERTCOLUMNW, 0, lvColumn
                 errorCheck e, -1
 
-                mov [lvColumn.pszText], wcsName
+                mov [lvColumn.pszText], wcsPath
                 invoke SendMessageW, [hPDList], LVM_INSERTCOLUMNW, 1, lvColumn
                 errorCheck e, -1
 
-                mov [lvColumn.pszText], wcsPath
+                mov [lvColumn.pszText], wcsPID
                 invoke SendMessageW, [hPDList], LVM_INSERTCOLUMNW, 2, lvColumn
                 errorCheck e, -1
+
+                invoke SendMessageW, [hPDList], LVM_SETCOLUMNORDERARRAY, 3, iPDColumnArray
+
+;               invoke SendMessageW, [hPDList], LVM_GETHEADER, 0, 0
+;               mov [hPDListHeader], rax
+
+;               invoke GetWindowLongPtr, rax, -16 ;GWL_STYLE
+;               or rax, HDS_FILTERBAR
+;               invoke SetWindowLongPtr, [hPDListHeader], -16, rax
 
                 stdcall ProcDialogRefresh
 
@@ -796,21 +834,16 @@ section '.code' code readable executable
                 mov [.item.iItem], esi
                 mov [.item.mask], LVIF_TEXT or LVIF_PARAM or LVIF_GROUPID
 
-                invoke swprintf, addr .buffer, wcsFmtHEX32, [.pe.th32ProcessID]
                 mov edx, [.pe.th32ProcessID]
-                lea rcx, [.buffer]
+                lea rcx, [.pe.szExeFile]
                 mov [.item.lParam], rdx
                 mov [.item.pszText], rcx
                 mov [.item.iSubItem], 0
                 invoke SendMessageW, [hPDList], LVM_INSERTITEMW, 0, addr .item
                 errorCheck e, -1
 
-                lea rcx, [.pe.szExeFile]
                 and [.item.mask], not (LVIF_PARAM or LVIF_GROUPID)
-                mov [.item.pszText], rcx
                 inc [.item.iSubItem]
-                invoke SendMessageW, [hPDList], LVM_SETITEMW, 0, addr .item
-                errorCheck
 
                 invoke OpenProcess, PROCESS_QUERY_INFORMATION, 0, [.pe.th32ProcessID]
                 test rax, rax
@@ -824,10 +857,16 @@ section '.code' code readable executable
                     jz @f
                         lea rcx, [.buffer]
                         mov [.item.pszText], rcx
-                        inc [.item.iSubItem]
                         invoke SendMessageW, [hPDList], LVM_SETITEMW, 0, addr .item
                         errorCheck
                 @@:
+
+                invoke swprintf, addr .buffer, wcsFmtHEX32, [.pe.th32ProcessID]
+                lea rcx, [.buffer]
+                mov [.item.pszText], rcx
+                inc [.item.iSubItem]
+                invoke SendMessageW, [hPDList], LVM_SETITEMW, 0, addr .item
+                errorCheck
 
                 invoke Process32NextW, rbx, addr .pe
                 inc esi
@@ -969,6 +1008,8 @@ section '.data' data readable writeable
     marginValue             dd 8
     marginMiddle            dd 4
 
+    iPDColumnArray          dd 2, 0, 1
+
     align 2, 0
     wstring wcsTerminal,    'Terminal'
 
@@ -1025,11 +1066,14 @@ section '.data' data readable writeable
     hTreeDialogs            dq 64 dup ?
     hTreeControls           dq 64 dup ?
 
+    pDefTreeControlProc     dq ?
+
     hTreeDCMem              dq ?
     hTreeBMMem              dq ?
     treeOldDrOrig           POINT
 
     hPDList                 dq ?
+    hPDListHeader           dq ?
 
     treeItem                TVITEMEX
     listItem                LVITEM
@@ -1118,7 +1162,7 @@ section '.rsrc' resource data readable
         6                               ;fontsize
                       ; class,            title, id,                x, y, cx,cy,  style, exstyle
             dialogitem 'ToolbarWindow32', '',    RSRC_TB_CONTROL,   0, 0, 0, 0, WS_VISIBLE or CCS_ADJUSTABLE
-            dialogitem 'SysTabControl32', '',    RSRC_TAB_CONTROL,  0, 0, 0, 0, WS_VISIBLE or WS_TABSTOP or TCS_BUTTONS or TCS_FLATBUTTONS or TCS_MULTILINE
+            dialogitem 'SysTabControl32', '',    RSRC_TAB_CONTROL,  0, 0, 0, 0, WS_CLIPCHILDREN or WS_VISIBLE or WS_TABSTOP or TCS_BUTTONS or TCS_FLATBUTTONS or TCS_MULTILINE
     enddialog
 
     dialog tree_dialog,\

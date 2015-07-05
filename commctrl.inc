@@ -151,6 +151,8 @@ TVI_FIRST           = -0x0FFFF
 TVI_LAST            = -0x0FFFE
 TVI_SORT            = -0x0FFFD
 
+LVM_GETHEADER       = 0x101
+
 LVIF_GROUPID        = 0x00000100
 
 I_GROUPIDCALLBACK   = -1
@@ -169,4 +171,16 @@ TVS_EX_PARTIALCHECKBOXES   = 0x0080
 TVS_EX_EXCLUSIONCHECKBOXES = 0x0100
 TVS_EX_DIMMEDCHECKBOXES    = 0x0200
 TVS_EX_DRAWIMAGEASYNC      = 0x0400
+
+HDS_HORZ                    = 0x0000
+HDS_BUTTONS                 = 0x0002
+HDS_HOTTRACK                = 0x0004
+HDS_HIDDEN                  = 0x0008
+HDS_DRAGDROP                = 0x0040
+HDS_FULLDRAG                = 0x0080
+HDS_FILTERBAR               = 0x0100
+HDS_FLAT                    = 0x0200
+HDS_CHECKBOXES              = 0x0400
+HDS_NOSIZING                = 0x0800
+HDS_OVERFLOW                = 0x1000
 

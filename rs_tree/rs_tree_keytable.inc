@@ -72,7 +72,7 @@ dq 0                            ; E
 dq 0                            ; F
 dq 0                            ; G
 dq 0                            ; H
-dq 0                            ; I
+dq RSTree_Insert_Item           ; I
 dq 0                            ; J
 dq 0                            ; K
 dq 0                            ; L
@@ -104,7 +104,7 @@ dq 0                            ; e
 dq 0                            ; f
 dq 0                            ; g
 dq 0                            ; h
-dq 0                            ; i
+dq RSTree_Insert_Item           ; i
 dq 0                            ; j
 dq 0                            ; k
 dq 0                            ; l
